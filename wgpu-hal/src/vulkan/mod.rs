@@ -619,6 +619,16 @@ impl Queue {
     pub fn as_raw(&self) -> vk::Queue {
         self.raw
     }
+
+    /// The Vulkan queue family index this queue belongs to.
+    ///
+    /// Needed by external callers (e.g. CUDA/Vulkan interop code) that
+    /// must create their own `VkCommandPool` to submit raw command
+    /// buffers on this exact queue -- a command buffer allocated from a
+    /// pool created for a different queue family cannot be submitted here.
+    pub fn family_index(&self) -> u32 {
+        self.family_index
+    }
 }
 
 impl Drop for Queue {
