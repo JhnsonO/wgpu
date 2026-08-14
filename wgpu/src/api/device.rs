@@ -311,18 +311,27 @@ impl Device {
     /// - `hal_texture` must be created from this device internal handle
     /// - `hal_texture` must be created respecting `desc`
     /// - `hal_texture` must be initialized
+    /// - `initial_state` must accurately describe the state the wrapped
+    ///   foreign resource is already in; wgpu will not re-initialize or
+    ///   otherwise validate this, and an incorrect value can lead to an
+    ///   illegal state transition (e.g. wgpu discarding contents it
+    ///   believes are uninitialized) or a validation error on first use.
     #[cfg(wgpu_core)]
     #[must_use]
     pub unsafe fn create_texture_from_hal<A: hal::Api>(
         &self,
         hal_texture: A::Texture,
         desc: &TextureDescriptor<'_>,
+        initial_state: TextureUses,
     ) -> Texture {
         let texture = unsafe {
             let core_device = self.inner.as_core();
-            core_device
-                .context
-                .create_texture_from_hal::<A>(hal_texture, core_device, desc)
+            core_device.context.create_texture_from_hal::<A>(
+                hal_texture,
+                core_device,
+                desc,
+                initial_state,
+            )
         };
         Texture {
             inner: texture.into(),
