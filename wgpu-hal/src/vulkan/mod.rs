@@ -612,6 +612,7 @@ pub struct Queue {
     family_index: u32,
     relay_semaphores: Mutex<RelaySemaphores>,
     signal_semaphores: Mutex<SemaphoreList>,
+    wait_semaphores: Mutex<SemaphoreList>,
 }
 
 impl Queue {
@@ -1284,6 +1285,11 @@ impl crate::Queue for Queue {
             signal_semaphores.append(&mut guard);
         }
 
+        let mut wait_guard = self.wait_semaphores.lock();
+        if !wait_guard.is_empty() {
+            wait_semaphores.append(&mut wait_guard);
+        }
+
         // In order for submissions to be strictly ordered, we encode a dependency between each submission
         // using a pair of semaphores. This adds a wait if it is needed, and signals the next semaphore.
         let semaphore_state = self.relay_semaphores.lock().advance(&self.device)?;
@@ -1371,6 +1377,25 @@ impl Queue {
             guard.push_signal(SemaphoreType::Timeline(semaphore, value));
         } else {
             guard.push_signal(SemaphoreType::Binary(semaphore));
+        }
+    }
+
+    /// Stage a semaphore wait on the next [`crate::Queue::submit`] call.
+    ///
+    /// Backport of upstream gfx-rs/wgpu commit dc7f438b (#9461) onto v28.0.1.
+    /// `remove_wait_semaphore` intentionally omitted (depends on
+    /// `SemaphoreList::remove`, not present at this base).
+    pub fn add_wait_semaphore(
+        &self,
+        semaphore: vk::Semaphore,
+        semaphore_value: Option<u64>,
+        stage: vk::PipelineStageFlags,
+    ) {
+        let mut guard = self.wait_semaphores.lock();
+        if let Some(value) = semaphore_value {
+            guard.push_wait(SemaphoreType::Timeline(semaphore, value), stage);
+        } else {
+            guard.push_wait(SemaphoreType::Binary(semaphore), stage);
         }
     }
 }
