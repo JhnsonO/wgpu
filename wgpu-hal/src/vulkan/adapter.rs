@@ -1182,6 +1182,26 @@ impl PhysicalDeviceProperties {
             extensions.push(ext::external_memory_dma_buf::NAME);
         }
 
+        // Optional `VK_KHR_external_semaphore_fd` -- provides
+        // `vkGetSemaphoreFdKHR`, needed for CUDA-producer/Vulkan-consumer
+        // cross-API synchronization. `VK_KHR_external_semaphore`
+        // (the base functionality this depends on) was promoted to
+        // Vulkan core in 1.1, so it must only be separately *enabled*
+        // as an extension on a 1.0 device -- requiring it unconditionally
+        // on a 1.1+ device would request an extension name the driver
+        // may not even advertise as a separate string, since its
+        // functionality is already core there. Mirrors this file's
+        // existing `device_api_version < API_VERSION_1_1` pattern used
+        // for other extensions promoted to 1.1 (e.g. maintenance1 above).
+        if self.device_api_version < vk::API_VERSION_1_1
+            && self.supports_extension(khr::external_semaphore::NAME)
+        {
+            extensions.push(khr::external_semaphore::NAME);
+        }
+        if self.supports_extension(khr::external_semaphore_fd::NAME) {
+            extensions.push(khr::external_semaphore_fd::NAME);
+        }
+
         // Optional `VK_EXT_memory_budget`
         if self.supports_extension(ext::memory_budget::NAME) {
             extensions.push(ext::memory_budget::NAME);
